@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz LBV</title>
+
+<style>
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#17104d,#321c80);
+  color:white;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+
+.container{
+  width:95%;
+  max-width:800px;
+  background:#21175c;
+  padding:30px;
+  border-radius:20px;
+  box-shadow:0 10px 40px #0008;
+  text-align:center;
+}
+
+h1{font-size:42px;margin-top:0}
+
+input,button{
+  width:100%;
+  padding:14px;
+  margin:8px 0;
+  border:0;
+  border-radius:10px;
+  font-size:18px;
+}
+
+button{
+  background:#ffcc00;
+  color:#181818;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+button:hover{transform:scale(1.02)}
+
+.answer{
+  background:#44349b;
+  color:white;
+  margin:10px 0;
+}
+
+.answer:disabled{opacity:.6}
+
+.hidden{display:none}
+
+.room{
+  font-size:35px;
+  font-weight:bold;
+  color:#ffdf32;
+  letter-spacing:5px;
+}
+
+.timer{
+  font-size:32px;
+  margin:15px;
+  color:#ffdf32;
+}
+
+.player{
+  background:#35277d;
+  margin:6px;
+  padding:10px;
+  border-radius:8px;
+}
+
+.correct{background:#159447!important}
+.wrong{background:#b52222!important}
+
+.rank{
+  display:flex;
+  justify-content:space-between;
+  padding:12px;
+  background:#35277d;
+  margin:6px 0;
+  border-radius:8px;
+}
+
+.small{opacity:.8}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div id="menu">
+  <h1>🎯 QUIZ LBV</h1>
+  <p>Quiz da Legião da Boa Vontade</p>
+
+  <input id="name" maxlength="20" placeholder="Seu nome">
+
+  <button onclick="createRoom()">CRIAR SALA</button>
+
+  <input id="roomInput" maxlength="6" placeholder="Código da sala">
+
+  <button onclick="joinRoom()">ENTRAR NA SALA</button>
+
+  <p id="error" style="color:#ff7777"></p>
+</div>
+
+
+<div id="lobby" class="hidden">
+  <h1>🎮 Sala</h1>
+
+  <p>Código da sala:</p>
+
+  <div class="room" id="roomCode"></div>
+
+  <h2>Jogadores</h2>
+
+  <div id="players"></div>
+
+  <button id="startButton" class="hidden" onclick="startGame()">
+    COMEÇAR QUIZ
+  </button>
+
+  <p class="small">Máximo de 22 jogadores</p>
+</div>
+
+
+<div id="quiz" class="hidden">
+
+  <h2 id="questionNumber"></h2>
+
+  <h1 id="question"></h1>
+
+  <div class="timer">
+    ⏱️ <span id="time">15</span>
+  </div>
+
+  <div id="answers"></div>
+
+  <p id="answerMessage"></p>
+
+</div>
+
+
+<div id="result" class="hidden">
+
+  <h1>🏆 RESULTADO</h1>
+
+  <div id="ranking"></div>
+
+  <button onclick="location.reload()">
+    JOGAR NOVAMENTE
+  </button>
+
+</div>
+
+</div>
+
+
+<script type="module">
+
+import { initializeApp } from
+"https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+
+import {
+  getDatabase,
+  ref,
+  set,
+  get,
+  update,
+  onValue
+} from
+"https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+
+/* FIREBASE */
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCOR9WH0tKIL0785t6WIeGZrvfySIFQPK0",
+  authDomain: "quiz-lbv.firebaseapp.com",
+  databaseURL: "https://quiz-lbv-default-rtdb.firebaseio.com",
+  projectId: "quiz-lbv",
+  storageBucket: "quiz-lbv.firebasestorage.app",
+  messagingSenderId: "204893072128",
+  appId: "1:204893072128:web:9a0bb36fad1bb31bd0e1e5",
+  measurementId: "G-K0FB0YWL81"
+};
+
+const app = initializeApp(firebaseConfig);
+
+const db = getDatabase(app);
+
+
+/* PERGUNTAS */
+
+const questions = [
+
+{
+q:"Qual é um dos princípios fundamentais defendidos pela LBV?",
+a:[
+"Fraternidade e solidariedade",
+"Competição acima de tudo",
+"Individualismo",
+"Isolamento social"
+],
+correct:0
+},
+
+{
+q:"O que significa a sigla LBV?",
+a:[
+"Legião da Boa Vontade",
+"Liga Brasileira da Vida",
+"Legião Brasileira da Verdade",
+"Lei da Boa Vida"
+],
+correct:0
+},
+
+{
+q:"Qual é uma das áreas de atuação da LBV?",
+a:[
+"Educação e assistência social",
+"Exploração espacial",
+"Fabricação de automóveis",
+"Mineração"
+],
+correct:0
+},
+
+{
+q:"A LBV desenvolve ações principalmente voltadas para:",
+a:[
+"Promoção do bem-estar e da cidadania",
+"Competições esportivas profissionais",
+"Mercado financeiro",
+"Turismo internacional"
+],
+correct:0
+},
+
+{
+q:"Qual valor está diretamente relacionado à proposta de solidariedade da LBV?",
+a:[
+"Fraternidade",
+"Rivalidade",
+"Indiferença",
+"Isolamento"
+],
+correct:0
+},
+
+{
+q:"As ações sociais da LBV procuram contribuir para:",
+a:[
+"Melhoria da qualidade de vida",
+"Aumento da desigualdade",
+"Isolamento das comunidades",
+"Redução do acesso à educação"
+],
+correct:0
+},
+
+{
+q:"Qual destas áreas pode fazer parte das iniciativas educacionais da LBV?",
+a:[
+"Educação e formação",
+"Exploração de petróleo",
+"Fabricação de celulares",
+"Corridas automobilísticas"
+],
+correct:0
+},
+
+{
+q:"A ideia de fraternidade defendida pela LBV está relacionada principalmente a:",
+a:[
+"Respeito e cooperação entre as pessoas",
+"Competição entre comunidades",
+"Separação das pessoas",
+"Busca por vantagens individuais"
+],
+correct:0
+},
+
+{
+q:"Em ações comunitárias, a solidariedade significa:",
+a:[
+"Ajudar e colaborar com outras pessoas",
+"Pensar somente em si mesmo",
+"Evitar qualquer cooperação",
+"Impedir a participação da comunidade"
+],
+correct:0
+},
+
+{
+q:"Qual destes conceitos combina com uma sociedade mais justa?",
+a:[
+"Respeito, solidariedade e cidadania",
+"Desigualdade e exclusão",
+"Indiferença e isolamento",
+"Discriminação e rivalidade"
+],
+correct:0
+}
+
+];
+
+
+/* VARIÁVEIS */
+
+let playerName="";
+let roomCode="";
+let playerId="";
+let isHost=false;
+let currentQuestion=-1;
+let gameData=null;
+let timerInterval=null;
+let answered=false;
+
+
+/* ELEMENTOS */
+
+const menu=document.getElementById("menu");
+const lobby=document.getElementById("lobby");
+const quiz=document.getElementById("quiz");
+const result=document.getElementById("result");
+
+
+/* ID DO JOGADOR */
+
+playerId =
+"p_" + Math.random().toString(36).substring(2,10);
+
+
+/* GERAR SALA */
+
+function generateRoom(){
+
+  return Math.floor(
+    100000 + Math.random()*900000
+  ).toString();
+
+}
+
+
+/* CRIAR SALA */
+
+window.createRoom = async function(){
+
+  playerName =
+    document.getElementById("name").value.trim();
+
+  if(!playerName){
+    showError("Digite seu nome.");
+    return;
+  }
+
+  roomCode=generateRoom();
+
+  isHost=true;
+
+  const roomRef=ref(db,"rooms/"+roomCode);
+
+  await set(roomRef,{
+    status:"waiting",
+    question:0,
+    players:{
+      [playerId]:{
+        name:playerName,
+        score:0,
+        host:true
+      }
+    }
+  });
+
+  enterLobby();
+
+};
+
+
+/* ENTRAR */
+
+window.joinRoom = async function(){
+
+  playerName =
+    document.getElementById("name").value.trim();
+
+  roomCode =
+    document.getElementById("roomInput").value.trim();
+
+  if(!playerName){
+    showError("Digite seu nome.");
+    return;
+  }
+
+  if(roomCode.length!==6){
+    showError("Digite o código de 6 números.");
+    return;
+  }
+
+  const roomRef=ref(db,"rooms/"+roomCode);
+
+  const snapshot=await get(roomRef);
+
+  if(!snapshot.exists()){
+    showError("Sala não encontrada.");
+    return;
+  }
+
+  const data=snapshot.val();
+
+  if(data.status!=="waiting"){
+    showError("Essa sala já começou.");
+    return;
+  }
+
+  const players=data.players || {};
+
+  if(Object.keys(players).length>=22){
+    showError("A sala já está cheia.");
+    return;
+  }
+
+  await update(
+    ref(db,"rooms/"+roomCode+"/players/"+playerId),
+    {
+      name:playerName,
+      score:0,
+      host:false
+    }
+  );
+
+  enterLobby();
+
+};
+
+
+/* ENTRAR NO LOBBY */
+
+function enterLobby(){
+
+  menu.classList.add("hidden");
+
+  lobby.classList.remove("hidden");
+
+  document.getElementById("roomCode").textContent=roomCode;
+
+  if(isHost){
+
+    document
+      .getElementById("startButton")
+      .classList.remove("hidden");
+
+  }
+
+  listenRoom();
+
+}
+
+
+/* OUVIR SALA */
+
+function listenRoom(){
+
+  onValue(
+    ref(db,"rooms/"+roomCode),
+    snapshot=>{
+
+      if(!snapshot.exists()) return;
+
+      gameData=snapshot.val();
+
+      updatePlayers();
+
+      if(gameData.status==="playing"){
+
+        const newQuestion =
+          gameData.question || 0;
+
+        if(newQuestion!==currentQuestion){
+
+          currentQuestion=newQuestion;
+
+          showQuestion();
+
+        }
+
+      }
+
+      if(gameData.status==="finished"){
+
+        showResults();
+
+      }
+
+    }
+  );
+
+}
+
+
+/* MOSTRAR JOGADORES */
+
+function updatePlayers(){
+
+  const box=document.getElementById("players");
+
+  box.innerHTML="";
+
+  const players=gameData.players || {};
+
+  Object.values(players)
+    .sort((a,b)=>b.score-a.score)
+    .forEach(player=>{
+
+      const div=document.createElement("div");
+
+      div.className="player";
+
+      div.textContent =
+        player.name +
+        (player.host ? " 👑" : "");
+
+      box.appendChild(div);
+
+    });
+
+}
+
+
+/* COMEÇAR */
+
+window.startGame = async function(){
+
+  if(!isHost) return;
+
+  await update(
+    ref(db,"rooms/"+roomCode),
+    {
+      status:"playing",
+      question:0,
+      questionStart:Date.now()
+    }
+  );
+
+};
+
+
+/* MOSTRAR PERGUNTA */
+
+function showQuestion(){
+
+  lobby.classList.add("hidden");
+
+  quiz.classList.remove("hidden");
+
+  const q=questions[currentQuestion];
+
+  document.getElementById("questionNumber").textContent =
+    "Pergunta "+(currentQuestion+1)+" de "+questions.length;
+
+  document.getElementById("question").textContent=q.q;
+
+  answered=false;
+
+  document.getElementById("answerMessage").textContent="";
+
+  const answers=document.getElementById("answers");
+
+  answers.innerHTML="";
+
+
+  let options=q.a.map((text,index)=>({
+
+    text:text,
+
+    correct:index===q.correct
+
+  }));
+
+
+  options.sort(()=>Math.random()-0.5);
+
+
+  options.forEach(option=>{
+
+    const button=document.createElement("button");
+
+    button.className="answer";
+
+    button.textContent=option.text;
+
+    button.onclick=()=>{
+
+      answerQuestion(option.correct,button);
+
+    };
+
+    answers.appendChild(button);
+
+  });
+
+
+  startTimer();
+
+}
+
+
+/* TIMER */
+
+function startTimer(){
+
+  clearInterval(timerInterval);
+
+  const start=gameData.questionStart || Date.now();
+
+  function tick(){
+
+    const elapsed=
+      Math.floor((Date.now()-start)/1000);
+
+    const remaining=
+      Math.max(0,15-elapsed);
+
+    document.getElementById("time").textContent=
+      remaining;
+
+    if(remaining<=0){
+
+      clearInterval(timerInterval);
+
+      disableAnswers();
+
+      if(isHost){
+
+        nextQuestion();
+
+      }
+
+    }
+
+  }
+
+  tick();
+
+  timerInterval=setInterval(tick,250);
+
+}
+
+
+/* RESPONDER */
+
+async function answerQuestion(correct,button){
+
+  if(answered) return;
+
+  answered=true;
+
+  disableAnswers();
+
+  if(correct){
+
+    button.classList.add("correct");
+
+    document.getElementById("answerMessage").textContent=
+      "✅ Correto!";
+
+    const currentScore=
+      gameData.players[playerId]?.score || 0;
+
+    await update(
+      ref(
+        db,
+        "rooms/"+roomCode+"/players/"+playerId
+      ),
+      {
+        score:currentScore+100
+      }
+    );
+
+  }else{
+
+    button.classList.add("wrong");
+
+    document.getElementById("answerMessage").textContent=
+      "❌ Errado!";
+
+  }
+
+}
+
+
+/* DESABILITAR */
+
+function disableAnswers(){
+
+  document
+    .querySelectorAll(".answer")
+    .forEach(button=>{
+
+      button.disabled=true;
+
+    });
+
+}
+
+
+/* PRÓXIMA */
+
+async function nextQuestion(){
+
+  if(!isHost) return;
+
+  const next=currentQuestion+1;
+
+  if(next>=questions.length){
+
+    await update(
+      ref(db,"rooms/"+roomCode),
+      {
+        status:"finished"
+      }
+    );
+
+    return;
+
+  }
+
+  await update(
+    ref(db,"rooms/"+roomCode),
+    {
+      question:next,
+      questionStart:Date.now()
+    }
+  );
+
+}
+
+
+/* RESULTADO */
+
+function showResults(){
+
+  if(result.classList.contains("hidden")===false)
+    return;
+
+  clearInterval(timerInterval);
+
+  quiz.classList.add("hidden");
+
+  lobby.classList.add("hidden");
+
+  result.classList.remove("hidden");
+
+  const ranking=
+    document.getElementById("ranking");
+
+  ranking.innerHTML="";
+
+  const players=
+    Object.values(gameData.players || {});
+
+  players.sort((a,b)=>b.score-a.score);
+
+  players.forEach((player,index)=>{
+
+    const div=document.createElement("div");
+
+    div.className="rank";
+
+    let medal="";
+
+    if(index===0) medal="🥇";
+
+    if(index===1) medal="🥈";
+
+    if(index===2) medal="🥉";
+
+    div.innerHTML=
+      `<span>${medal} ${index+1}º ${player.name}</span>
+       <strong>${player.score} pts</strong>`;
+
+    ranking.appendChild(div);
+
+  });
+
+}
+
+
+/* ERRO */
+
+function showError(message){
+
+  document.getElementById("error").textContent=message;
+
+}
+
+</script>
+
+</body>
+</html>
